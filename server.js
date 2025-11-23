@@ -1,7 +1,6 @@
 // ===============================================
 // API PARA RECEBER DADOS DO ARDUINO E GRAVAR NO
 // POSTGRESQL (E ENVIAR PARA O FRONT-END)
-// CORREÇÃO: volume_chuva MUDADO para chuva_mm
 // ===============================================
 
 const express = require("express");
@@ -15,6 +14,7 @@ app.use(bodyParser.json());
 
 // ===============================================
 // CONFIGURAÇÃO DO BANCO POSTGRESQL (VERSÃO RENDER)
+// A conexão usa a variável de ambiente DATABASE_URL, injetada pelo Render.
 // ===============================================
 const db = new Pool({
     connectionString: process.env.DATABASE_URL,
@@ -26,70 +26,67 @@ const db = new Pool({
 });
 
 // ===============================================
-// ROTA DE TESTE / HEALTH CHECK
-// ===============================================
-app.get('/', (req, res) => {
-    res.status(200).json({ 
-        status: "API Online e funcionando.",
-        servico: "Pluviômetro Agrícola Inteligente",
-        instrucao_arduino: "Use a rota POST /api/receber para enviar dados."
-    });
-});
-
-// ===============================================
 // ROTA PARA RECEBER DADOS DO ARDUINO (POST)
-// O Arduino envia: umidade, estado, intensidade, chuva
+// Rota que o Arduino usa para enviar leituras (umidade, chuva, etc.)
 // ===============================================
 app.post("/api/receber", async (req, res) => {
     const { umidade, estado, intensidade, chuva } = req.body;
 
+    // console.log("Recebido do Arduino:", req.body); // Pode ser desativado após o teste inicial
+
     // Validação básica dos dados
     if (umidade === undefined || estado === undefined || intensidade === undefined || chuva === undefined) {
-        return res.status(400).json({ mensagem: "Dados incompletos. Requer: umidade, estado, intensidade, chuva." });
+        return res.status(400).send("Dados incompletos.");
     }
 
     try {
-        const query = `
-            INSERT INTO leituras (umidade_solo, estado_solo, intensidade_chuva, **chuva_mm**)
+        const sql = `
+            INSERT INTO leituras (umidade_solo, estado_solo, intensidade_chuva, chuva_mm)
             VALUES ($1, $2, $3, $4)
-            RETURNING *;
         `;
-        const values = [umidade, estado, intensidade, chuva];
-        await db.query(query, values);
-        
-        // Resposta de sucesso rápida para o Arduino
-        res.status(200).json({ mensagem: "Dados recebidos e salvos com sucesso!" });
 
-    } catch (error) {
-        console.error("Erro ao inserir dados no banco de dados:", error);
-        res.status(500).json({ mensagem: "Erro interno do servidor ao salvar dados." });
+        await db.query(sql, [umidade, estado, intensidade, chuva]);
+
+        res.status(200).send("Dados salvos com sucesso!");
+    } catch (err) {
+        console.error("Erro ao salvar no PostgreSQL:", err);
+        // Retorna um erro 500 para o Arduino/cliente
+        res.status(500).send("Erro ao salvar no PostgreSQL");
     }
 });
 
+
 // ===============================================
-// ENDPOINT 1: Última Leitura (para o Dashboard)
+// NOVOS ENDPOINTS PARA O DASHBOARD (GET)
 // ===============================================
+
+// ENDPOINT 1: Buscar Última Leitura (para Cartões de Dados)
+// Retorna a última umidade e o volume de chuva total das últimas 24h.
 app.get('/api/ultima_leitura', async (req, res) => {
     try {
         const query = `
-            SELECT 
-                umidade_solo, 
-                estado_solo, 
-                intensidade_chuva, 
-                **chuva_mm**,
-                TO_CHAR(data_leitura, 'DD/MM/YYYY HH24:MI:SS') as data_formatada
-            FROM leituras 
-            ORDER BY data_leitura DESC 
+            SELECT
+                umidade_solo,
+                -- Subconsulta para somar a chuva das últimas 24 horas
+                (SELECT ROUND(SUM(chuva_mm)::numeric, 1) FROM leituras WHERE data_leitura >= NOW() - INTERVAL '24 hours') AS volume_chuva_24h,
+                data_leitura
+            FROM leituras
+            ORDER BY data_leitura DESC
             LIMIT 1;
         `;
         const result = await db.query(query);
 
         if (result.rows.length === 0) {
-            return res.status(404).json({ mensagem: "Nenhuma leitura encontrada." });
+            return res.status(404).json({ mensagem: "Nenhum dado encontrado." });
         }
 
-        // Importante: a chave retornada será 'chuva_mm'
-        res.status(200).json(result.rows[0]); 
+        const data = result.rows[0];
+        res.status(200).json({
+            umidade_solo: data.umidade_solo,
+            // Usa 0.0 se não houver dados de chuva nas últimas 24h
+            volume_chuva: data.volume_chuva_24h || 0.0, 
+            data_hora: data.data_leitura
+        });
 
     } catch (error) {
         console.error("Erro ao buscar a última leitura:", error);
@@ -97,18 +94,19 @@ app.get('/api/ultima_leitura', async (req, res) => {
     }
 });
 
-// ENDPOINT 2: Chuva Semanal (para Gráfico de Barras)
-// Calcula o volume de chuva total por dia nos últimos 7 dias.
+// ENDPOINT 2: Histórico de Chuva Semanal (para Gráfico de Barras)
+// Agrupa a soma total de chuva (mm) por dia da semana nos últimos 7 dias.
 app.get('/api/chuva_semanal', async (req, res) => {
     try {
         const query = `
             SELECT
-                SUM(**chuva_mm**) AS chuva_total_mm,
-                TO_CHAR(data_leitura, 'Day') AS dia_da_semana
+                -- DOW (Day of Week): 0=Dom, 1=Seg...
+                EXTRACT(DOW FROM data_leitura) AS dia_semana_num, 
+                ROUND(SUM(chuva_mm)::numeric, 1) AS volume_total
             FROM leituras
             WHERE data_leitura >= NOW() - INTERVAL '7 days'
-            GROUP BY 2
-            ORDER BY MIN(data_leitura);
+            GROUP BY 1
+            ORDER BY 1;
         `;
         const result = await db.query(query);
         res.status(200).json(result.rows);
@@ -143,9 +141,11 @@ app.get('/api/historico_umidade', async (req, res) => {
 });
 
 // ===============================================
-// INICIALIZAÇÃO DO SERVIDOR
+// INICIAR SERVIDOR NA PORTA DINÂMICA
+// Render injeta a porta em process.env.PORT
 // ===============================================
-const PORT = process.env.PORT || 10000; 
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+const port = process.env.PORT || 3000;
+
+app.listen(port, () => {
+    console.log(`API rodando na porta ${port}`);
 });
