@@ -1,0 +1,110 @@
+/* Reset Básico */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f4f7f6;
+    margin: 0;
+    padding: 20px;
+    color: #333;
+    line-height: 1.6;
+}
+
+/* Cabeçalho */
+header {
+    background-color: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+}
+
+header h1 {
+    color: #1a6f20; /* Verde escuro */
+    font-size: 1.8em;
+    font-weight: 600;
+    margin: 0;
+}
+
+header p {
+    color: #777;
+    font-size: 0.9em;
+    margin-left: auto; /* Alinha a data/hora à direita */
+}
+
+/* Layout do Dashboard (Grid Responsivo) */
+.dashboard {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr); /* 3 colunas em desktop */
+    gap: 20px;
+}
+
+/* Cartões (Containers Visuais) */
+.card {
+    background-color: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    transition: transform 0.3s ease;
+}
+
+.card:hover {
+    transform: translateY(-3px);
+}
+
+.data-card h2 {
+    font-size: 0.9em;
+    color: #555;
+    margin-top: 0;
+}
+
+.data-value {
+    font-size: 2.5em;
+    font-weight: bold;
+    color: #333;
+    margin: 5px 0 0;
+}
+
+.data-card.umidade .data-value {
+    color: #c69542; /* Marrom para Umidade do Solo */
+}
+.data-card.chuva .data-value {
+    color: #0077b6; /* Azul para Volume de Chuva */
+}
+
+.data-label {
+    font-size: 0.8em;
+    color: #999;
+}
+
+/* Gráficos */
+.chart-card {
+    grid-column: span 3; /* Ocupa a largura total em todas as telas */
+    height: 350px; /* Altura fixa para o gráfico */
+    display: flex;
+    flex-direction: column;
+}
+
+.chart-card h2 {
+    font-size: 1.2em;
+    margin-bottom: 15px;
+    color: #1a6f20;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 5px;
+}
+
+.chart-container {
+    flex-grow: 1; /* Faz o canvas ocupar o espaço restante */
+    position: relative;
+}
+
+/* Responsividade para Telas Menores (Mobile/Tablet) */
+@media (max-width: 1000px) {
+    .dashboard {
+        grid-template-columns: 1fr; /* Uma única coluna no mobile */
+    }
+    .chart-card {
+        grid-column: span 1;
+        height: 300px;
+    }
+}
