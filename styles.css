@@ -1,7 +1,7 @@
-/* Reset Básico */
+/* Reset Básico e Fontes */
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: #f4f7f6;
+    font-family: 'Inter', sans-serif; /* Usando uma fonte moderna */
+    background-color: #f4f7f6; /* Fundo suave */
     margin: 0;
     padding: 20px;
     color: #333;
@@ -17,12 +17,13 @@ header {
     margin-bottom: 20px;
     display: flex;
     align-items: center;
+    border-left: 5px solid #1a6f20; /* Destaque verde */
 }
 
 header h1 {
     color: #1a6f20; /* Verde escuro */
     font-size: 1.8em;
-    font-weight: 600;
+    font-weight: 700;
     margin: 0;
 }
 
@@ -39,6 +40,17 @@ header p {
     gap: 20px;
 }
 
+/* Adaptando para Tablet e Mobile */
+@media (max-width: 1024px) {
+    .dashboard {
+        grid-template-columns: 1fr; /* 1 coluna em mobile */
+    }
+    /* Os cartões de gráficos ocupam a largura total em mobile */
+    .chart-card {
+        grid-column: 1 / -1;
+    }
+}
+
 /* Cartões (Containers Visuais) */
 .card {
     background-color: white;
@@ -53,9 +65,10 @@ header p {
 }
 
 .data-card h2 {
-    font-size: 0.9em;
+    font-size: 1em;
     color: #555;
     margin-top: 0;
+    font-weight: 500;
 }
 
 .data-value {
@@ -65,46 +78,54 @@ header p {
     margin: 5px 0 0;
 }
 
+/* Cores específicas para cartões de dados */
+.data-card.umidade { border-bottom: 4px solid #c69542; }
+.data-card.chuva { border-bottom: 4px solid #0077b6; }
+.data-card.api-status { border-bottom: 4px solid #1a6f20; }
+
 .data-card.umidade .data-value {
     color: #c69542; /* Marrom para Umidade do Solo */
 }
 .data-card.chuva .data-value {
     color: #0077b6; /* Azul para Volume de Chuva */
 }
+.data-card.api-status .data-value {
+    font-size: 2em;
+    color: #1a6f20;
+}
+
 
 .data-label {
     font-size: 0.8em;
     color: #999;
+    margin-top: 10px;
 }
 
 /* Gráficos */
 .chart-card {
-    grid-column: span 3; /* Ocupa a largura total em todas as telas */
-    height: 350px; /* Altura fixa para o gráfico */
+    grid-column: 1 / span 3; /* Ocupa 3 colunas em desktop */
+    height: 400px; /* Altura fixa para o gráfico */
     display: flex;
     flex-direction: column;
 }
 
 .chart-card h2 {
-    font-size: 1.2em;
     margin-bottom: 15px;
     color: #1a6f20;
-    border-bottom: 1px solid #eee;
-    padding-bottom: 5px;
+    font-size: 1.4em;
 }
 
+/* Contêiner do Canvas para responsividade */
 .chart-container {
-    flex-grow: 1; /* Faz o canvas ocupar o espaço restante */
+    flex-grow: 1;
     position: relative;
 }
 
-/* Responsividade para Telas Menores (Mobile/Tablet) */
-@media (max-width: 1000px) {
-    .dashboard {
-        grid-template-columns: 1fr; /* Uma única coluna no mobile */
-    }
-    .chart-card {
-        grid-column: span 1;
-        height: 300px;
-    }
+/* Estilização do ícone no header */
+header svg {
+    display: inline-block; 
+    vertical-align: middle; 
+    margin-right: 15px;
+    width: 30px;
+    height: 30px;
 }
