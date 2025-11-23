@@ -13,15 +13,13 @@ app.use(cors());
 app.use(bodyParser.json());
 
 // ===============================================
-// CONFIGURAÇÃO DO BANCO POSTGRESQL (MUDANÇA AQUI)
+// CONFIGURAÇÃO DO BANCO POSTGRESQL (VERSÃO RENDER)
+// A conexão usa a variável de ambiente DATABASE_URL, injetada pelo Render.
 // ===============================================
 const db = new Pool({
-    // Usa a variável de ambiente DATABASE_URL, injetada pelo Render,
-    // que contém todas as credenciais do seu agricola-db.
     connectionString: process.env.DATABASE_URL,
     
     // Configuração SSL é obrigatória para conexões de ambiente de nuvem
-    // (mesmo que Render-to-Render usem a rede interna, é boa prática).
     ssl: {
         rejectUnauthorized: false
     }
@@ -29,11 +27,17 @@ const db = new Pool({
 
 // ===============================================
 // ROTA PARA RECEBER DADOS DO ARDUINO (POST)
+// Rota que o Arduino usa para enviar leituras (umidade, chuva, etc.)
 // ===============================================
 app.post("/api/receber", async (req, res) => {
     const { umidade, estado, intensidade, chuva } = req.body;
 
-    console.log("Recebido do Arduino:", req.body);
+    // console.log("Recebido do Arduino:", req.body); // Pode ser desativado após o teste inicial
+
+    // Validação básica dos dados
+    if (umidade === undefined || estado === undefined || intensidade === undefined || chuva === undefined) {
+        return res.status(400).send("Dados incompletos.");
+    }
 
     try {
         const sql = `
@@ -43,9 +47,10 @@ app.post("/api/receber", async (req, res) => {
 
         await db.query(sql, [umidade, estado, intensidade, chuva]);
 
-        res.send("Dados salvos com sucesso!");
+        res.status(200).send("Dados salvos com sucesso!");
     } catch (err) {
-        console.error("Erro:", err);
+        console.error("Erro ao salvar no PostgreSQL:", err);
+        // Retorna um erro 500 para o Arduino/cliente
         res.status(500).send("Erro ao salvar no PostgreSQL");
     }
 });
@@ -56,6 +61,7 @@ app.post("/api/receber", async (req, res) => {
 // ===============================================
 
 // ENDPOINT 1: Buscar Última Leitura (para Cartões de Dados)
+// Retorna a última umidade e o volume de chuva total das últimas 24h.
 app.get('/api/ultima_leitura', async (req, res) => {
     try {
         const query = `
@@ -89,11 +95,13 @@ app.get('/api/ultima_leitura', async (req, res) => {
 });
 
 // ENDPOINT 2: Histórico de Chuva Semanal (para Gráfico de Barras)
+// Agrupa a soma total de chuva (mm) por dia da semana nos últimos 7 dias.
 app.get('/api/chuva_semanal', async (req, res) => {
     try {
         const query = `
             SELECT
-                EXTRACT(DOW FROM data_leitura) AS dia_semana_num, -- DOW: 0=Dom, 1=Seg...
+                -- DOW (Day of Week): 0=Dom, 1=Seg...
+                EXTRACT(DOW FROM data_leitura) AS dia_semana_num, 
                 ROUND(SUM(chuva_mm)::numeric, 1) AS volume_total
             FROM leituras
             WHERE data_leitura >= NOW() - INTERVAL '7 days'
@@ -110,6 +118,7 @@ app.get('/api/chuva_semanal', async (req, res) => {
 });
 
 // ENDPOINT 3: Histórico de Umidade (para Gráfico de Linha 24h)
+// Calcula a umidade média agrupada em blocos de 4 horas nas últimas 24h.
 app.get('/api/historico_umidade', async (req, res) => {
     try {
         const query = `
@@ -132,7 +141,8 @@ app.get('/api/historico_umidade', async (req, res) => {
 });
 
 // ===============================================
-// INICIAR SERVIDOR NA PORTA DINÂMICA (MUDANÇA AQUI)
+// INICIAR SERVIDOR NA PORTA DINÂMICA
+// Render injeta a porta em process.env.PORT
 // ===============================================
 const port = process.env.PORT || 3000;
 
