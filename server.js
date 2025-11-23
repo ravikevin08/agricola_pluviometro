@@ -1,6 +1,7 @@
 // ===============================================
 // API PARA RECEBER DADOS DO ARDUINO E GRAVAR NO
 // POSTGRESQL (E ENVIAR PARA O FRONT-END)
+// CORREÇÃO: volume_chuva MUDADO para chuva_mm
 // ===============================================
 
 const express = require("express");
@@ -14,7 +15,6 @@ app.use(bodyParser.json());
 
 // ===============================================
 // CONFIGURAÇÃO DO BANCO POSTGRESQL (VERSÃO RENDER)
-// A conexão usa a variável de ambiente DATABASE_URL, injetada pelo Render.
 // ===============================================
 const db = new Pool({
     connectionString: process.env.DATABASE_URL,
@@ -27,8 +27,6 @@ const db = new Pool({
 
 // ===============================================
 // ROTA DE TESTE / HEALTH CHECK
-// Adicionado para dar uma resposta rápida e amigável na rota raiz
-// quando o Render é acessado via navegador para testes.
 // ===============================================
 app.get('/', (req, res) => {
     res.status(200).json({ 
@@ -40,7 +38,7 @@ app.get('/', (req, res) => {
 
 // ===============================================
 // ROTA PARA RECEBER DADOS DO ARDUINO (POST)
-// Rota que o Arduino usa para enviar leituras (umidade, chuva, etc.)
+// O Arduino envia: umidade, estado, intensidade, chuva
 // ===============================================
 app.post("/api/receber", async (req, res) => {
     const { umidade, estado, intensidade, chuva } = req.body;
@@ -52,7 +50,7 @@ app.post("/api/receber", async (req, res) => {
 
     try {
         const query = `
-            INSERT INTO leituras (umidade_solo, estado_solo, intensidade_chuva, volume_chuva)
+            INSERT INTO leituras (umidade_solo, estado_solo, intensidade_chuva, **chuva_mm**)
             VALUES ($1, $2, $3, $4)
             RETURNING *;
         `;
@@ -78,7 +76,7 @@ app.get('/api/ultima_leitura', async (req, res) => {
                 umidade_solo, 
                 estado_solo, 
                 intensidade_chuva, 
-                volume_chuva,
+                **chuva_mm**,
                 TO_CHAR(data_leitura, 'DD/MM/YYYY HH24:MI:SS') as data_formatada
             FROM leituras 
             ORDER BY data_leitura DESC 
@@ -90,7 +88,8 @@ app.get('/api/ultima_leitura', async (req, res) => {
             return res.status(404).json({ mensagem: "Nenhuma leitura encontrada." });
         }
 
-        res.status(200).json(result.rows[0]);
+        // Importante: a chave retornada será 'chuva_mm'
+        res.status(200).json(result.rows[0]); 
 
     } catch (error) {
         console.error("Erro ao buscar a última leitura:", error);
@@ -104,7 +103,7 @@ app.get('/api/chuva_semanal', async (req, res) => {
     try {
         const query = `
             SELECT
-                SUM(volume_chuva) AS chuva_total_mm,
+                SUM(**chuva_mm**) AS chuva_total_mm,
                 TO_CHAR(data_leitura, 'Day') AS dia_da_semana
             FROM leituras
             WHERE data_leitura >= NOW() - INTERVAL '7 days'
@@ -145,7 +144,6 @@ app.get('/api/historico_umidade', async (req, res) => {
 
 // ===============================================
 // INICIALIZAÇÃO DO SERVIDOR
-// Usa a porta fornecida pelo Render (geralmente PORT ou 10000)
 // ===============================================
 const PORT = process.env.PORT || 10000; 
 app.listen(PORT, () => {
