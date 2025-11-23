@@ -27,40 +27,46 @@
             margin-bottom: 20px;
             display: flex;
             align-items: center;
-            border-left: 5px solid #1a6f20; /* Destaque verde */
+            border-left: 5px solid #1a6f20; /* Destaque verde (Cor da agricultura) */
         }
 
         header h1 {
             color: #1a6f20; /* Verde escuro */
             font-size: 1.8em;
-            font-weight: 700;
+            font-weight: 600;
             margin: 0;
+            margin-left: 10px;
         }
 
         header p {
             color: #777;
             font-size: 0.9em;
             margin-left: auto; /* Alinha a data/hora à direita */
+            font-weight: 500;
         }
 
         /* Layout do Dashboard (Grid Responsivo) */
         .dashboard {
             display: grid;
-            grid-template-columns: repeat(3, 1fr); /* 3 colunas em desktop */
+            grid-template-columns: 1fr; /* 1 coluna para mobile */
             gap: 20px;
         }
 
-        /* Adaptando para Tablet e Mobile */
-        @media (max-width: 1024px) {
+        @media (min-width: 768px) {
             .dashboard {
-                grid-template-columns: 1fr; /* 1 coluna em mobile */
+                grid-template-columns: repeat(3, 1fr); /* 3 colunas em desktop */
             }
-            /* Os cartões de gráficos ocupam a largura total em mobile */
-            .chart-card {
-                grid-column: 1 / -1;
+            .chart-card-full {
+                grid-column: 1 / span 3; /* Ocupa 3 colunas */
+            }
+            .chart-card-half {
+                grid-column: span 2; /* Histórico de Umidade (2/3) */
+            }
+            .chart-card-third {
+                grid-column: span 1; /* Chuva Semanal (1/3) */
             }
         }
-
+        
         /* Cartões (Containers Visuais) */
         .card {
             background-color: white;
@@ -68,6 +74,8 @@
             border-radius: 12px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
             transition: transform 0.3s ease;
+            /* Garante que o conteúdo seja cortado se o gráfico for maior */
+            overflow: hidden; 
         }
 
         .card:hover {
@@ -75,10 +83,10 @@
         }
 
         .data-card h2 {
-            font-size: 1em;
+            font-size: 0.9em;
             color: #555;
             margin-top: 0;
-            font-weight: 500;
+            margin-bottom: 5px;
         }
 
         .data-value {
@@ -88,68 +96,32 @@
             margin: 5px 0 0;
         }
 
-        /* Cores específicas para cartões de dados */
-        .data-card.umidade { border-bottom: 4px solid #c69542; }
-        .data-card.chuva { border-bottom: 4px solid #0077b6; }
-        .data-card.api-status { border-bottom: 4px solid #1a6f20; }
-
         .data-card.umidade .data-value {
             color: #c69542; /* Marrom para Umidade do Solo */
         }
         .data-card.chuva .data-value {
             color: #0077b6; /* Azul para Volume de Chuva */
         }
-        .data-card.api-status .data-value {
-            font-size: 2em;
-            color: #1a6f20;
+        .data-card.status {
+            border-left: 5px solid gray; /* Padrão antes de carregar */
         }
 
-        /* Estilos dinâmicos para o estado do solo */
         .data-label {
             font-size: 0.8em;
             color: #999;
-            margin-top: 10px;
         }
-        
-        .data-label.status-ok { color: #1a6f20; font-weight: 600; }
-        .data-label.status-warning { color: #c69542; font-weight: 600; }
-        .data-label.status-alert { color: #dc3545; font-weight: 600; }
-
 
         /* Gráficos */
-        .chart-card {
-            grid-column: 1 / span 3; /* Ocupa 3 colunas em desktop */
-            height: 400px; /* Altura fixa para o gráfico */
-            display: flex;
-            flex-direction: column;
-        }
-
-        .chart-card h2 {
-            margin-bottom: 15px;
-            color: #1a6f20;
-            font-size: 1.4em;
-        }
-
-        /* Contêiner do Canvas para responsividade */
         .chart-container {
-            flex-grow: 1;
             position: relative;
-        }
-
-        /* Estilização do ícone no header */
-        header svg {
-            display: inline-block; 
-            vertical-align: middle; 
-            margin-right: 15px;
-            width: 30px;
-            height: 30px;
+            height: 300px; /* Altura fixa para os gráficos */
         }
     </style>
 </head>
 <body onload="initDashboard()">
     <header>
-        <!-- Icone de Nuvem/Gota -->
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1a6f20" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v6"/><path d="m12 18-4 4"/><path d="m12 22 4-4"/><path d="M16 16.5c-1.52.86-3.23.86-4.88 0-1.76-1-2.92-2.92-2.92-5.11 0-4.63 3.65-8.47 8.24-8.87 3.51-.31 6.84 1.48 8.48 4.67 1.48 2.87.97 6.44-1.39 8.74"/></svg>
+        <!-- Icone de Nuvem (Lucide Icon, usado para representar clima/agricultura) -->
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#1a6f20" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: middle;"><path d="M12 2v6"/><path d="m12 18-4 4"/><path d="m12 22 4-4"/><path d="M16 16.5c-1.52.86-3.23.86-4.88 0-1.76-1-2.92-2.92-2.92-5.11 0-4.63 3.65-8.47 8.24-8.87 3.51-.31 6.84 1.48 8.48 4.67 1.48 2.87.97 6.44-1.39 8.74"/></svg>
         <h1>Pluviômetro Agrícola Inteligente</h1>
         <p>Dados atualizados em: <span id="data-hora">--:--</span></p>
     </header>
@@ -157,37 +129,36 @@
     <main class="dashboard">
         <!-- Cartão 1: Umidade do Solo -->
         <div class="card data-card umidade">
-            <h2>Umidade do Solo</h2>
+            <h2>Umidade do Solo Atual</h2>
             <p class="data-value" id="umidade-valor">-- %</p>
-            <p class="data-label" id="estado-solo">Aguardando leitura...</p>
+            <p class="data-label">Última leitura registrada</p>
         </div>
         
-        <!-- Cartão 2: Volume de Chuva -->
+        <!-- Cartão 2: Volume de Água -->
         <div class="card data-card chuva">
-            <h2>Chuva Acumulada (Últimos 7 Dias)</h2>
+            <h2>Chuva Acumulada (24h)</h2>
             <p class="data-value" id="chuva-valor">-- mm</p>
-            <p class="data-label">Total estimado</p>
+            <p class="data-label">Últimas 24 horas</p>
         </div>
 
-        <!-- Cartão 3: Status da API/Conexão -->
-        <div class="card data-card api-status">
-            <h2>Status do Sistema</h2>
-            <p class="data-value" id="api-status-icon">⚪</p>
-            <p class="data-label" id="api-status-text">Inicializando...</p>
+        <!-- Cartão 3: Status da API/Banco -->
+        <div class="card data-card status" id="status-card">
+            <h2>Status da Conexão API</h2>
+            <p class="data-value" id="status-valor" style="font-size: 1.8em; color: gray;">Carregando...</p>
+            <p class="data-label">API: https://pluviometro-api.onrender.com</p>
         </div>
 
-
-        <!-- Gráfico 1: Histórico de Umidade (Últimas 24 horas) -->
-        <div class="card chart-card" style="grid-column: 1 / span 2;">
-            <h2>Histórico de Umidade (Últimas 24h)</h2>
+        <!-- Gráfico 4: Histórico de Umidade (24h) - Ocupa 2 colunas -->
+        <div class="card chart-card-half">
+            <h2>Umidade Média do Solo (Últimas 24h)</h2>
             <div class="chart-container">
                 <canvas id="umidadeChart"></canvas>
             </div>
         </div>
-        
-        <!-- Gráfico 2: Chuva Semanal -->
-        <div class="card chart-card" style="grid-column: 3 / span 1;">
-            <h2>Chuva por Dia (Últimos 7 Dias)</h2>
+
+        <!-- Gráfico 3: Histórico de Chuva Semanal - Ocupa 1 coluna -->
+        <div class="card chart-card-third">
+            <h2>Volume de Chuva Semanal (mm)</h2>
             <div class="chart-container">
                 <canvas id="chuvaChart"></canvas>
             </div>
@@ -195,57 +166,33 @@
     </main>
 
     <script>
-        // ATENÇÃO: Alteração feita para funcionar em ambientes de nuvem como o Render.
-        // O caminho da API agora é RELATIVO ao domínio do dashboard.
-        const API_URL = 'https://pluviometro-api.onrender.com';
+        // ===============================================
+        // CONFIGURAÇÃO DA API (ATUALIZADA PARA O RENDER)
+        // ===============================================
+        // ATENÇÃO: A URL AGORA APONTA PARA SEU SERVIÇO DEPLOYADO NO RENDER!
+        const API_URL = 'https://pluviometro-api.onrender.com/api'; 
         
+        // Mapeamento dos dias da semana (PostgreSQL retorna 0=Dom, 1=Seg...)
         const diasSemana = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+        
         let umidadeChartInstance = null;
         let chuvaChartInstance = null;
 
-        // ===============================================
-        // FUNÇÕES DE STATUS E VALIDAÇÃO
-        // ===============================================
-
-        /**
-         * Atualiza o cartão de status da API.
-         * @param {boolean} isOk - True se a conexão foi bem sucedida.
-         */
-        function updateApiStatus(isOk) {
-            const icon = document.getElementById('api-status-icon');
-            const text = document.getElementById('api-status-text');
+        // Função utilitária para atualizar o status de conexão
+        function updateStatus(isOk) {
+            const statusValor = document.getElementById('status-valor');
+            const statusCard = document.getElementById('status-card');
             
             if (isOk) {
-                icon.textContent = '🟢';
-                text.textContent = 'Conexão OK';
-                icon.style.color = '#1a6f20'; // Verde
+                statusValor.textContent = 'CONECTADO OK';
+                statusValor.style.color = '#1a6f20'; // Verde
+                statusCard.style.borderLeftColor = '#1a6f20';
             } else {
-                icon.textContent = '🔴';
-                text.textContent = 'Erro de Conexão (Verificar API)';
-                icon.style.color = '#dc3545'; // Vermelho
+                statusValor.textContent = 'ERRO';
+                statusValor.style.color = '#dc3545'; // Vermelho
+                statusCard.style.borderLeftColor = '#dc3545';
             }
         }
-        
-        /**
-         * Atualiza o status do solo baseado na umidade.
-         * @param {number} umidade - Valor de umidade do solo.
-         */
-        function updateEstadoSolo(umidade) {
-            const estadoElement = document.getElementById('estado-solo');
-            estadoElement.className = 'data-label'; // Reset classes
-
-            if (umidade >= 70) {
-                estadoElement.textContent = 'Solo Úmido (Excelente)';
-                estadoElement.classList.add('status-ok');
-            } else if (umidade > 30) {
-                estadoElement.textContent = 'Nível Ideal para Cultivo';
-                estadoElement.classList.add('status-warning');
-            } else {
-                estadoElement.textContent = 'Solo Seco, Requer Irrigação!';
-                estadoElement.classList.add('status-alert');
-            }
-        }
-
 
         // ===============================================
         // FUNÇÕES DE BUSCA (FETCH)
@@ -253,50 +200,28 @@
 
         async function buscarUltimaLeitura() {
             try {
-                // A requisição usa o caminho relativo '/api/ultima_leitura'
                 const response = await fetch(`${API_URL}/ultima_leitura`);
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                
-                updateApiStatus(true);
                 const data = await response.json();
 
                 // 1. Atualiza os cartões
-                const umidade = parseFloat(data.umidade_solo);
-                document.getElementById('umidade-valor').textContent = `${umidade.toFixed(0)} %`;
-                document.getElementById('chuva-valor').textContent = `${parseFloat(data.volume_chuva).toFixed(1)} mm`;
+                document.getElementById('umidade-valor').textContent = `${data.umidade_solo} %`;
+                document.getElementById('chuva-valor').textContent = `${data.volume_chuva} mm`;
                 
                 // 2. Formata e atualiza a data/hora
                 const dataLeitura = new Date(data.data_hora);
                 const horaMinuto = dataLeitura.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                document.getElementById('data-hora').textContent = horaMinuto;
-
-                // 3. Atualiza o estado do solo
-                updateEstadoSolo(umidade);
+                const diaMes = dataLeitura.toLocaleDateString('pt-BR');
+                document.getElementById('data-hora').textContent = `${diaMes} ${horaMinuto}`;
+                
+                updateStatus(true); // Conexão bem-sucedida
 
             } catch (error) {
-                console.error("Erro ao buscar última leitura:", error);
-                // Atualiza o status da API para erro
-                updateApiStatus(false);
-            }
-        }
-
-        async function buscarDadosChuva() {
-            try {
-                const response = await fetch(`${API_URL}/chuva_semanal`);
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                
-                updateApiStatus(true);
-                const dados = await response.json();
-                
-                // Formata os dados
-                const labels = dados.map(item => diasSemana[item.dia_semana_num]);
-                const volumes = dados.map(item => parseFloat(item.volume_total));
-
-                renderizarChuvaChart(labels, volumes);
-            } catch (error) {
-                console.error("Erro ao buscar dados de chuva:", error);
-                // Atualiza o status da API para erro se for a primeira falha
-                updateApiStatus(false); 
+                console.error("Erro ao buscar a última leitura:", error);
+                document.getElementById('umidade-valor').textContent = `-- %`;
+                document.getElementById('chuva-valor').textContent = `-- mm`;
+                document.getElementById('data-hora').textContent = `Falha ao conectar`;
+                updateStatus(false); // Erro de conexão
             }
         }
 
@@ -304,57 +229,53 @@
             try {
                 const response = await fetch(`${API_URL}/historico_umidade`);
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const dadosUmidade = await response.json();
                 
-                updateApiStatus(true);
-                const dados = await response.json();
-                
-                // Formata os dados: a API já agrupa por 4 horas, basta usar os campos
-                const labels = dados.map(item => item.hora_agrupada);
-                const umidades = dados.map(item => parseFloat(item.umidade_media));
+                // Extrai rótulos (horas) e dados (umidade)
+                const labels = dadosUmidade.map(d => d.hora_agrupada);
+                const umidades = dadosUmidade.map(d => parseFloat(d.umidade_media));
 
                 renderizarUmidadeChart(labels, umidades);
+                updateStatus(true);
+
             } catch (error) {
                 console.error("Erro ao buscar histórico de umidade:", error);
-                // Atualiza o status da API para erro se for a primeira falha
-                updateApiStatus(false);
+                updateStatus(false);
+            }
+        }
+
+        async function buscarDadosChuva() {
+            try {
+                const response = await fetch(`${API_URL}/chuva_semanal`);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const dadosChuva = await response.json();
+
+                // 1. O backend já retorna a soma agrupada, precisamos apenas extrair os dados na ordem correta
+                // A query retorna os dias na ordem numérica (0=Dom, 1=Seg...)
+                const finalLabels = dadosChuva.map(item => diasSemana[item.dia_semana_num]);
+                const finalData = dadosChuva.map(item => parseFloat(item.volume_total));
+
+                renderizarChuvaChart(finalLabels, finalData);
+                updateStatus(true);
+
+            } catch (error) {
+                console.error("Erro ao buscar dados de chuva:", error);
+                updateStatus(false);
             }
         }
 
         // ===============================================
-        // FUNÇÕES DE RENDERIZAÇÃO (CHART.JS)
+        // FUNÇÕES DE RENDERIZAÇÃO DE GRÁFICOS
         // ===============================================
 
-        function renderizarChuvaChart(labels, volumes) {
-            if (chuvaChartInstance) chuvaChartInstance.destroy(); // Destrói o anterior
-            const ctx = document.getElementById('chuvaChart').getContext('2d');
-            chuvaChartInstance = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: labels, 
-                    datasets: [{
-                        label: 'Volume (mm)',
-                        data: volumes,
-                        backgroundColor: 'rgba(54, 162, 235, 0.8)', // Azul
-                        borderColor: 'rgba(54, 162, 235, 1)',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: { beginAtZero: true, title: { display: true, text: 'mm' } },
-                    },
-                    plugins: {
-                        legend: { display: false }
-                    }
-                }
-            });
-        }
-
         function renderizarUmidadeChart(labels, umidades) {
-            if (umidadeChartInstance) umidadeChartInstance.destroy(); // Destrói o anterior
             const ctx = document.getElementById('umidadeChart').getContext('2d');
+            
+            // Destruir instância anterior, se existir
+            if (umidadeChartInstance) {
+                umidadeChartInstance.destroy();
+            }
+
             umidadeChartInstance = new Chart(ctx, {
                 type: 'line',
                 data: {
@@ -364,8 +285,9 @@
                         data: umidades,
                         borderColor: '#c69542', // Marrom/Dourado 
                         tension: 0.4, 
-                        fill: false,
-                        pointRadius: 5, // Pontos maiores
+                        fill: true, // Preenche a área abaixo da linha
+                        backgroundColor: 'rgba(198, 149, 66, 0.2)', // Cor de preenchimento
+                        pointRadius: 5, 
                         pointBackgroundColor: '#c69542'
                     }]
                 },
@@ -373,7 +295,57 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     scales: {
-                        y: { min: 0, max: 100, title: { display: true, text: 'Umidade (%)' } },
+                        y: { 
+                            min: 0, 
+                            max: 100, 
+                            title: { display: true, text: 'Umidade (%)' },
+                            grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                        },
+                        x: {
+                            title: { display: true, text: 'Horário (Agrupado em 4h)' },
+                            grid: { display: false }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+
+        function renderizarChuvaChart(labels, volumes) {
+            const ctx = document.getElementById('chuvaChart').getContext('2d');
+            
+            // Destruir instância anterior, se existir
+            if (chuvaChartInstance) {
+                chuvaChartInstance.destroy();
+            }
+
+            chuvaChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels, 
+                    datasets: [{
+                        label: 'Chuva (mm)',
+                        data: volumes,
+                        backgroundColor: '#0077b6', // Azul para Chuva
+                        borderColor: '#005f93',
+                        borderWidth: 1,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Volume (mm)' },
+                            grid: { color: 'rgba(0, 0, 0, 0.05)' }
+                        },
+                        x: {
+                            grid: { display: false }
+                        }
                     },
                     plugins: {
                         legend: { display: false }
@@ -399,5 +371,5 @@
         }
     </script>
 </body>
-
 </html>
+
